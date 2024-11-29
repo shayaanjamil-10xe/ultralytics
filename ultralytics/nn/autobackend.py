@@ -89,7 +89,7 @@ class AutoBackend(nn.Module):
         data=None,
         fp16=False,
         batch=1,
-        fuse=True,
+        fuse=False,
         verbose=True,
     ):
         """

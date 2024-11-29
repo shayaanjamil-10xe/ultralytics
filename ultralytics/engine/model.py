@@ -258,6 +258,7 @@ class Model(nn.Module):
         self.model_name = cfg
 
     def _load(self, weights: str, task=None) -> None:
+        print("LOAD CALLED")
         """
         Loads a model from a checkpoint file or initializes it from a weights file.
 
@@ -631,6 +632,8 @@ class Model(nn.Module):
         custom = {"rect": True}  # method defaults
         args = {**self.overrides, **custom, **kwargs, "mode": "val"}  # highest priority args on the right
 
+        print(f"{args=}")
+        print(f"{self.callbacks=}")
         validator = (validator or self._smart_load("validator"))(args=args, _callbacks=self.callbacks)
         validator(model=self.model)
         self.metrics = validator.metrics

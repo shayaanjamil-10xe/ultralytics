@@ -17,6 +17,13 @@ from .utils import bias_init_with_prob, linear_init
 
 __all__ = "Detect", "Segment", "Pose", "Classify", "OBB", "RTDETRDecoder", "v10Detect"
 
+class ArangeForFx(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self._is_leaf_module = True
+
+    def forward(self, x):
+        return torch.arange(x)
 
 class Detect(nn.Module):
     """YOLO Detect head for detection models."""
@@ -66,8 +73,11 @@ class Detect(nn.Module):
         if self.end2end:
             return self.forward_end2end(x)
 
+        ls = []
         for i in range(self.nl):
-            x[i] = torch.cat((self.cv2[i](x[i]), self.cv3[i](x[i])), 1)
+            # x[i] = torch.cat((self.cv2[i](x[i]), self.cv3[i](x[i])), 1)
+            ls.append(torch.cat((self.cv2[i](x[i]), self.cv3[i](x[i])), 1))
+        x = ls
         if self.training:  # Training path
             return x
         y = self._inference(x)
@@ -102,31 +112,41 @@ class Detect(nn.Module):
         # Inference path
         shape = x[0].shape  # BCHW
         x_cat = torch.cat([xi.view(shape[0], self.no, -1) for xi in x], 2)
-        if self.format != "imx" and (self.dynamic or self.shape != shape):
-            self.anchors, self.strides = (x.transpose(0, 1) for x in make_anchors(x, self.stride, 0.5))
-            self.shape = shape
+        # print(f"{self.format=}")
+        # if self.format != "imx" and (self.dynamic or self.shape != shape):
+        # print("IN FIRST IF CONDITION")
 
-        if self.export and self.format in {"saved_model", "pb", "tflite", "edgetpu", "tfjs"}:  # avoid TF FlexSplitV ops
-            box = x_cat[:, : self.reg_max * 4]
-            cls = x_cat[:, self.reg_max * 4 :]
-        else:
-            box, cls = x_cat.split((self.reg_max * 4, self.nc), 1)
+        # print(f"{x=}")
+        # print(f"{self.stride=}")
+        self.anchors, self.strides = (x.transpose(0, 1) for x in make_anchors(x, self.stride, 0.5))
+        self.shape = shape
 
-        if self.export and self.format in {"tflite", "edgetpu"}:
-            # Precompute normalization factor to increase numerical stability
-            # See https://github.com/ultralytics/ultralytics/issues/7371
-            grid_h = shape[2]
-            grid_w = shape[3]
-            grid_size = torch.tensor([grid_w, grid_h, grid_w, grid_h], device=box.device).reshape(1, 4, 1)
-            norm = self.strides / (self.stride[0] * grid_size)
-            dbox = self.decode_bboxes(self.dfl(box) * norm, self.anchors.unsqueeze(0) * norm[:, :2])
-        elif self.export and self.format == "imx":
-            dbox = self.decode_bboxes(
-                self.dfl(box) * self.strides, self.anchors.unsqueeze(0) * self.strides, xywh=False
-            )
-            return dbox.transpose(1, 2), cls.sigmoid().permute(0, 2, 1)
-        else:
-            dbox = self.decode_bboxes(self.dfl(box), self.anchors.unsqueeze(0)) * self.strides
+        # if self.export and self.format in {"saved_model", "pb", "tflite", "edgetpu", "tfjs"}:  # avoid TF FlexSplitV ops
+        #     print("IN SECOND IF CONDITION")
+        #     box = x_cat[:, : self.reg_max * 4]
+        #     cls = x_cat[:, self.reg_max * 4 :]
+        # else:
+        #     print("IN SECOND ELSE CONDITION")
+        box, cls = x_cat.split((self.reg_max * 4, self.nc), 1)
+
+        # if self.export and self.format in {"tflite", "edgetpu"}:
+        #     print("IN THIRD IF CONDITION")
+        #     # Precompute normalization factor to increase numerical stability
+        #     # See https://github.com/ultralytics/ultralytics/issues/7371
+        #     grid_h = shape[2]
+        #     grid_w = shape[3]
+        #     grid_size = torch.tensor([grid_w, grid_h, grid_w, grid_h], device=box.device).reshape(1, 4, 1)
+        #     norm = self.strides / (self.stride[0] * grid_size)
+        #     dbox = self.decode_bboxes(self.dfl(box) * norm, self.anchors.unsqueeze(0) * norm[:, :2])
+        # elif self.export and self.format == "imx":
+        #     print("IN THIRD ELSE IF CONDITION")
+        #     dbox = self.decode_bboxes(
+        #         self.dfl(box) * self.strides, self.anchors.unsqueeze(0) * self.strides, xywh=False
+        #     )
+        #     return dbox.transpose(1, 2), cls.sigmoid().permute(0, 2, 1)
+        # else:
+        #     print("IN THIRD ELSE CONDITION")
+        dbox = self.decode_bboxes(self.dfl(box), self.anchors.unsqueeze(0)) * self.strides
 
         return torch.cat((dbox, cls.sigmoid()), 1)
 

@@ -30,12 +30,14 @@ class PosePredictor(DetectionPredictor):
                 "See https://github.com/ultralytics/ultralytics/issues/4031."
             )
 
-    def postprocess(self, preds, img, orig_imgs):
+    def postprocess(self, preds, img, orig_imgs, img_paths=None):
         """Return detection results for a given input image or list of images."""
+        # from pprint import pprint
+        # pprint(self.args)
         preds = ops.non_max_suppression(
             preds,
-            self.args.conf,
-            self.args.iou,
+            conf_thres=0.001,
+            iou_thres=0.6,
             agnostic=self.args.agnostic_nms,
             max_det=self.args.max_det,
             classes=self.args.classes,
@@ -46,7 +48,8 @@ class PosePredictor(DetectionPredictor):
             orig_imgs = ops.convert_torch2numpy_batch(orig_imgs)
 
         results = []
-        for pred, orig_img, img_path in zip(preds, orig_imgs, self.batch[0]):
+        img_paths = img_paths if img_paths is not None else self.batch[0]
+        for pred, orig_img, img_path in zip(preds, orig_imgs, img_paths):
             pred[:, :4] = ops.scale_boxes(img.shape[2:], pred[:, :4], orig_img.shape).round()
             pred_kpts = pred[:, 6:].view(len(pred), *self.model.kpt_shape) if len(pred) else pred[:, 6:]
             pred_kpts = ops.scale_coords(img.shape[2:], pred_kpts, orig_img.shape)

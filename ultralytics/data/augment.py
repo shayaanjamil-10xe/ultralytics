@@ -1589,7 +1589,6 @@ class LetterBox:
         )  # add border
         if labels.get("ratio_pad"):
             labels["ratio_pad"] = (labels["ratio_pad"], (left, top))  # for evaluation
-
         if len(labels):
             labels = self._update_labels(labels, ratio, left, top)
             labels["img"] = img

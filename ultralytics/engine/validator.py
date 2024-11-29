@@ -155,6 +155,11 @@ class BaseValidator:
             self.stride = model.stride  # used in get_dataloader() for padding
             self.dataloader = self.dataloader or self.get_dataloader(self.data.get(self.args.split), self.args.batch)
 
+            print("fgfgfygrfygrygrfg")
+            print(type(model))
+            import inspect
+            print(inspect.getsource(model.eval))
+            print("wruiurghurhu")
             model.eval()
             model.warmup(imgsz=(1 if pt else self.args.batch, 3, imgsz, imgsz))  # warmup
 

@@ -319,14 +319,36 @@ class CBAM(nn.Module):
         return self.spatial_attention(self.channel_attention(x))
 
 
+# class Concat(nn.Module):
+#     """Concatenate a list of tensors along dimension."""
+
+#     def __init__(self, dimension=1):
+#         """Concatenates a list of tensors along a specified dimension."""
+#         super().__init__()
+#         self.d = dimension
+
+#     def forward(self, x):
+#         """Forward pass for the YOLOv8 mask Proto module."""
+#         print("Concat module called")
+#         return torch.cat(x, self.d)
+
+import torch
+from torch.overrides import handle_torch_function, has_torch_function
+
+def fancy_cat(tensors, dim=0):
+    if has_torch_function((tensors,)):
+        return handle_torch_function(torch.cat, (tensors,), (tensors, dim), {})
+    tensors = tuple(tensors)  # handle passed in generator
+    if has_torch_function(tensors):
+        return handle_torch_function(torch.cat, tensors, (tensors, dim), {})
+    return torch.cat(tensors, dim=dim)
+
+from torch import nn
+
 class Concat(nn.Module):
-    """Concatenate a list of tensors along dimension."""
-
-    def __init__(self, dimension=1):
-        """Concatenates a list of tensors along a specified dimension."""
+    def __init__(self):
         super().__init__()
-        self.d = dimension
 
-    def forward(self, x):
-        """Forward pass for the YOLOv8 mask Proto module."""
-        return torch.cat(x, self.d)
+    def forward(self, inputs):
+        cat = fancy_cat(inputs, 1)
+        return cat
